@@ -2,7 +2,7 @@
 package raindrops
 
 import (
-	"fmt"
+	"bytes"
 	"strconv"
 )
 
@@ -11,21 +11,21 @@ const testVersion = 3
 // Convert turns a number into a funny string based on the number's factors.
 // It returns a funny string based on the prime factors 3, 5, and 7.
 func Convert(n int) string {
-	pling, plang, plong := "", "", ""
+	var buffer bytes.Buffer
 
 	if n%3 == 0 {
-		pling = "Pling"
+		buffer.WriteString("Pling")
 	}
 	if n%5 == 0 {
-		plang = "Plang"
+		buffer.WriteString("Plang")
 	}
 	if n%7 == 0 {
-		plong = "Plong"
+		buffer.WriteString("Plong")
 	}
 
-	if pling == "" && plang == "" && plong == "" {
+	if buffer.Len() == 0 {
 		return strconv.Itoa(n)
 	}
 
-	return fmt.Sprintf("%v%v%v", pling, plang, plong)
+	return buffer.String()
 }
