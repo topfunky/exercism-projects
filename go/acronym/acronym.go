@@ -16,10 +16,10 @@ func Abbreviate(phrase string) string {
 	var words = strings.FieldsFunc(phrase, func(r rune) bool {
 		return !unicode.IsLetter(r)
 	})
+
 	for _, word := range words {
-		letter := strings.ToUpper(string(word[0]))
-		buffer.WriteString(letter)
+		buffer.WriteString(string(word[0]))
 	}
 
-	return buffer.String()
+	return strings.ToUpper(buffer.String())
 }
