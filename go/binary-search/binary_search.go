@@ -16,20 +16,28 @@ func SearchInts(s []int, key int) int {
 }
 
 func searchInRange(s []int, left, right, key int) int {
-	mid := calculateMidpoint(left, right)
+	mid := left + (right-left)/2
 	if right >= left {
 		switch {
 		case s[mid] == key:
 			return peekLeftwardForDuplicates(s, mid, key)
-		case s[mid] > key:
+		case key < s[mid]:
 			// Search leftward
 			return searchInRange(s, left, mid-1, key)
-		case s[mid] < key:
+		case key > s[mid]:
 			// Search rightward
 			return searchInRange(s, mid+1, right, key)
 		}
 	}
 	return mid
+}
+
+func peekLeftwardForDuplicates(s []int, left, key int) int {
+	if left >= 0 && s[left] == key {
+		return peekLeftwardForDuplicates(s, left-1, key)
+	}
+	// If we get here, we looked too far left and have to add 1.
+	return left + 1
 }
 
 // Message looks for a key in a slice.
@@ -68,16 +76,4 @@ func Message(s []int, key int) string {
 
 	// Key is in range of slice but doesn't match exactly.
 	return fmt.Sprintf("%d > %d at index %d, < %d at index %d", key, s[index-1], index-1, s[index], index)
-}
-
-func calculateMidpoint(left, right int) int {
-	return left + (right-left)/2
-}
-
-func peekLeftwardForDuplicates(s []int, left, key int) int {
-	if left >= 0 && s[left] == key {
-		return peekLeftwardForDuplicates(s, left-1, key)
-	}
-	// If we get here, we went too far left and have to add 1.
-	return left + 1
 }
