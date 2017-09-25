@@ -10,7 +10,7 @@ type SearchTreeData struct {
 	right *SearchTreeData
 }
 
-// Bst creates a pointer to a new SearchTreeData struct.
+// Bst creates and returns a pointer to a new SearchTreeData struct.
 func Bst(data int) *SearchTreeData {
 	node := new(SearchTreeData)
 	node.data = data
@@ -41,16 +41,14 @@ func (node *SearchTreeData) Insert(data int) {
 // MapString runs function f on all nodes in the tree, in ascending order.
 // It returns a slice of the resulting transformed values as strings.
 func (node *SearchTreeData) MapString(f func(int) string) (results []string) {
-	if node.data != 0 {
-		if node.left != nil {
-			results = append(results, node.left.MapString(f)...)
-		}
+	if node.left != nil {
+		results = append(results, node.left.MapString(f)...)
+	}
 
-		results = append(results, f(node.data))
+	results = append(results, f(node.data))
 
-		if node.right != nil {
-			results = append(results, node.right.MapString(f)...)
-		}
+	if node.right != nil {
+		results = append(results, node.right.MapString(f)...)
 	}
 
 	return results
@@ -59,16 +57,14 @@ func (node *SearchTreeData) MapString(f func(int) string) (results []string) {
 // MapInt runs function f on all nodes in the tree, in ascending order.
 // It returns a slice of the resulting transformed values as ints.
 func (node *SearchTreeData) MapInt(f func(int) int) (results []int) {
-	if node.data != 0 {
-		if node.left != nil {
-			results = append(results, node.left.MapInt(f)...)
-		}
+	if node.left != nil {
+		results = append(results, node.left.MapInt(f)...)
+	}
 
-		results = append(results, f(node.data))
+	results = append(results, f(node.data))
 
-		if node.right != nil {
-			results = append(results, node.right.MapInt(f)...)
-		}
+	if node.right != nil {
+		results = append(results, node.right.MapInt(f)...)
 	}
 
 	return results
