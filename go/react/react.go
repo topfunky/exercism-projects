@@ -26,7 +26,7 @@ func (s *Spreadsheet) CreateCompute1(c Cell, callback func(int) int) ComputeCell
 	input := c.(*SpreadsheetCell)
 	compute := SpreadsheetCell{}
 	compute.AddCallback(callback)
-	compute.WatchInputCell(input)
+	compute.ObserveCell(input)
 	return &compute
 }
 
@@ -36,8 +36,8 @@ func (s *Spreadsheet) CreateCompute1(c Cell, callback func(int) int) ComputeCell
 func (s *Spreadsheet) CreateCompute2(c1 Cell, c2 Cell, callback func(int, int) int) ComputeCell {
 	compute := SpreadsheetCell{}
 	compute.AddCallback2(callback)
-	compute.WatchInputCell(c1)
-	compute.WatchInputCell(c2)
+	compute.ObserveCell(c1)
+	compute.ObserveCell(c2)
 	return &compute
 }
 
@@ -52,17 +52,16 @@ func (sc SpreadsheetCanceler) Cancel() {
 // SpreadsheetInputCell has a changeable value, changing the value triggers updates to
 // other cells.
 type SpreadsheetCell struct {
-	data        int
-	computeCell *SpreadsheetCell
+	data       int
+	observedBy *SpreadsheetCell
 
-	callback1  func(int) int
-	callback2  func(int, int) int
-	inputCell1 Cell
-	inputCell2 Cell
+	callback1 func(int) int
+	callback2 func(int, int) int
+	observing [2]Cell
 }
 
 func (sc *SpreadsheetCell) RegisterComputeCell(computeCell *SpreadsheetCell) {
-	sc.computeCell = computeCell
+	sc.observedBy = computeCell
 	sc.recalculateAll()
 }
 
@@ -78,32 +77,34 @@ func (sc *SpreadsheetCell) Value() int {
 }
 
 func (sc *SpreadsheetCell) recalculateAll() {
-	if sc.computeCell != nil {
+	if sc.observedBy != nil {
 		fmt.Println("Recalculating...")
-		sc.computeCell.recalculate()
+		sc.observedBy.recalculate()
 	}
 }
 
-func (sc *SpreadsheetCell) WatchInputCell(cell Cell) {
-	if sc.inputCell1 == nil {
-		sc.inputCell1 = cell
+func (sc *SpreadsheetCell) ObserveCell(cell Cell) {
+	if sc.observing[0] == nil {
+		sc.observing[0] = cell
 	} else {
-		sc.inputCell2 = cell
+		sc.observing[1] = cell
 	}
 	cell.(*SpreadsheetCell).RegisterComputeCell(sc)
 }
 
 func (sc *SpreadsheetCell) recalculate() {
-	fmt.Printf("recalculate() %v %v %v %v\n", sc.callback1, sc.callback2, sc.inputCell1, sc.inputCell2)
+	fmt.Printf("recalculate() %v\n", sc.observing)
 	switch {
-	case sc.callback2 != nil && sc.inputCell1 != nil && sc.inputCell2 != nil:
+	case sc.callback2 != nil && sc.observing[1] != nil:
 		fmt.Println("  -> Executing callback2")
-		value := sc.callback2(sc.inputCell1.Value(), sc.inputCell2.Value())
+		value := sc.callback2(sc.observing[0].Value(), sc.observing[1].Value())
 		sc.SetValue(value)
-	case sc.callback1 != nil:
+	case sc.callback1 != nil && sc.observing[0] != nil:
 		fmt.Println("  -> Executing callback1")
-		value := sc.callback1(sc.inputCell1.Value())
+		value := sc.callback1(sc.observing[0].Value())
 		sc.SetValue(value)
+	default:
+		fmt.Println("  -> sc.observing is nil")
 	}
 }
 
