@@ -39,7 +39,7 @@ type ComputeCell interface {
 
 	// AddCallback adds a callback which will be called when the value changes.
 	// It returns a Canceler which can be used to remove the callback.
-	AddCallback(func(int) int) Canceler
+	AddCallback(func(int)) Canceler
 }
 
 // A Canceler is used to remove previously added callbacks, see ComputeCell.

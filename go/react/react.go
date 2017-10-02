@@ -1,13 +1,13 @@
 package react
 
-import "fmt"
-
 const testVersion = 5
 
+// Spreadsheet manages the creation of cells.
 type Spreadsheet struct {
 	// TODO: keep a slice of input and compute cells
 }
 
+// New creates a Spreadsheet.
 func New() *Spreadsheet {
 	s := new(Spreadsheet)
 	return s
@@ -25,7 +25,7 @@ func (s *Spreadsheet) CreateInput(data int) InputCell {
 func (s *Spreadsheet) CreateCompute1(c Cell, callback func(int) int) ComputeCell {
 	input := c.(*SpreadsheetCell)
 	compute := SpreadsheetCell{}
-	compute.AddCallback(callback)
+	compute.AddComputeFunc1(callback)
 	compute.ObserveCell(input)
 	return &compute
 }
@@ -35,31 +35,36 @@ func (s *Spreadsheet) CreateCompute1(c Cell, callback func(int) int) ComputeCell
 // passed cells changes.
 func (s *Spreadsheet) CreateCompute2(c1 Cell, c2 Cell, callback func(int, int) int) ComputeCell {
 	compute := SpreadsheetCell{}
-	compute.AddCallback2(callback)
+	compute.AddComputeFunc2(callback)
 	compute.ObserveCell(c1)
 	compute.ObserveCell(c2)
 	return &compute
 }
 
+// SpreadsheetCanceler manages registered auxiliary callbacks so they can be deleted.
 type SpreadsheetCanceler struct {
+	cell  *SpreadsheetCell
+	index int
 }
 
 // Cancel removes the callback.
 func (sc SpreadsheetCanceler) Cancel() {
-
+	sc.cell.RemoveCallback(sc.index)
 }
 
-// SpreadsheetInputCell has a changeable value, changing the value triggers updates to
+// SpreadsheetCell has a changeable value, changing the value triggers updates to
 // other cells.
 type SpreadsheetCell struct {
 	data       int
 	observedBy *SpreadsheetCell
 
-	callback1 func(int) int
-	callback2 func(int, int) int
-	observing [2]Cell
+	computeFunc1 func(int) int
+	computeFunc2 func(int, int) int
+	callbacks    []func(int)
+	observing    [2]Cell
 }
 
+// RegisterComputeCell adds references to a compute cell to the parent cell.
 func (sc *SpreadsheetCell) RegisterComputeCell(computeCell *SpreadsheetCell) {
 	sc.observedBy = computeCell
 	sc.recalculateAll()
@@ -67,22 +72,22 @@ func (sc *SpreadsheetCell) RegisterComputeCell(computeCell *SpreadsheetCell) {
 
 // SetValue sets the value of the cell.
 func (sc *SpreadsheetCell) SetValue(data int) {
-	fmt.Printf("Setting %d\n", data)
 	sc.data = data
 	sc.recalculateAll()
 }
 
+// Value returns the cell's data (whether static or computed).
 func (sc *SpreadsheetCell) Value() int {
 	return sc.data
 }
 
 func (sc *SpreadsheetCell) recalculateAll() {
 	if sc.observedBy != nil {
-		fmt.Println("Recalculating...")
 		sc.observedBy.recalculate()
 	}
 }
 
+// ObserveCell registers a cell for notification upon change.
 func (sc *SpreadsheetCell) ObserveCell(cell Cell) {
 	if sc.observing[0] == nil {
 		sc.observing[0] = cell
@@ -93,31 +98,46 @@ func (sc *SpreadsheetCell) ObserveCell(cell Cell) {
 }
 
 func (sc *SpreadsheetCell) recalculate() {
-	fmt.Printf("recalculate() %v\n", sc.observing)
+	original := sc.Value()
 	switch {
-	case sc.callback2 != nil && sc.observing[1] != nil:
-		fmt.Println("  -> Executing callback2")
-		value := sc.callback2(sc.observing[0].Value(), sc.observing[1].Value())
+	case sc.computeFunc2 != nil && sc.observing[1] != nil:
+		value := sc.computeFunc2(sc.observing[0].Value(), sc.observing[1].Value())
 		sc.SetValue(value)
-	case sc.callback1 != nil && sc.observing[0] != nil:
-		fmt.Println("  -> Executing callback1")
-		value := sc.callback1(sc.observing[0].Value())
+	case sc.computeFunc1 != nil && sc.observing[0] != nil:
+		value := sc.computeFunc1(sc.observing[0].Value())
 		sc.SetValue(value)
 	default:
-		fmt.Println("  -> sc.observing is nil")
+		// sc.observing is nil
+	}
+	// Run auxiliary callbacks if computed value changed
+	if sc.Value() != original {
+		for _, callback := range sc.callbacks {
+			if callback != nil {
+				callback(sc.Value())
+			}
+		}
 	}
 }
 
-// AddCallback adds a single argument callback which will be called when the value changes.
-// It returns a Canceler which can be used to remove the callback.
-func (sc *SpreadsheetCell) AddCallback(callback func(int) int) Canceler {
-	sc.callback1 = callback
-	return new(SpreadsheetCanceler)
+// AddComputeFunc1 adds a single argument callback which will be called when the value changes.
+func (sc *SpreadsheetCell) AddComputeFunc1(callback func(int) int) {
+	sc.computeFunc1 = callback
 }
 
-// AddCallback adds a two argument callback which will be called when the value changes.
-// It returns a Canceler which can be used to remove the callback.
-func (sc *SpreadsheetCell) AddCallback2(callback2 func(int, int) int) Canceler {
-	sc.callback2 = callback2
-	return new(SpreadsheetCanceler)
+// AddComputeFunc2 adds a two argument callback which will be called when the value changes.
+func (sc *SpreadsheetCell) AddComputeFunc2(callback2 func(int, int) int) {
+	sc.computeFunc2 = callback2
+}
+
+// AddCallback registers and auxiliary callback which will be called with the
+// computed value after it changes.
+func (sc *SpreadsheetCell) AddCallback(callback func(int)) Canceler {
+	sc.callbacks = append(sc.callbacks, callback)
+	return SpreadsheetCanceler{cell: sc, index: len(sc.callbacks) - 1}
+}
+
+// RemoveCallback deletes a registered auxiliary callback.
+func (sc *SpreadsheetCell) RemoveCallback(index int) {
+	// TODO Re-build splice without this callback
+	sc.callbacks[index] = nil
 }

@@ -49,19 +49,19 @@ func TestBasicCompute1(t *testing.T) {
 	assertCellValue(t, c, 3, "c.Value() isn't properly computed based on changed input cell value")
 }
 
-// // The value of a compute 2 cell is determined by the value of the dependencies.
-// func TestBasicCompute2(t *testing.T) {
-// 	r := New()
-// 	i1 := r.CreateInput(1)
-// 	i2 := r.CreateInput(2)
-// 	c := r.CreateCompute2(i1, i2, func(v1, v2 int) int { return v1 | v2 })
-// 	assertCellValue(t, c, 3, "c.Value() isn't properly computed based on initial input cell values")
-// 	i1.SetValue(4)
-// 	assertCellValue(t, c, 6, "c.Value() isn't properly computed when first input cell value changes")
-// 	i2.SetValue(8)
-// 	assertCellValue(t, c, 12, "c.Value() isn't properly computed when second input cell value changes")
-// }
-//
+// The value of a compute 2 cell is determined by the value of the dependencies.
+func TestBasicCompute2(t *testing.T) {
+	r := New()
+	i1 := r.CreateInput(1)
+	i2 := r.CreateInput(2)
+	c := r.CreateCompute2(i1, i2, func(v1, v2 int) int { return v1 | v2 })
+	assertCellValue(t, c, 3, "c.Value() isn't properly computed based on initial input cell values")
+	i1.SetValue(4)
+	assertCellValue(t, c, 6, "c.Value() isn't properly computed when first input cell value changes")
+	i2.SetValue(8)
+	assertCellValue(t, c, 12, "c.Value() isn't properly computed when second input cell value changes")
+}
+
 // // Compute 2 cells can depend on compute 1 cells.
 // func TestCompute2Diamond(t *testing.T) {
 // 	r := New()
@@ -74,22 +74,22 @@ func TestBasicCompute1(t *testing.T) {
 // 	assertCellValue(t, c3, 8, "c3.Value() isn't properly computed based on changed input cell value")
 // }
 
-// // Compute 1 cells can depend on other compute 1 cells.
-// func TestCompute1Chain(t *testing.T) {
-// 	r := New()
-// 	inp := r.CreateInput(1)
-// 	var c Cell = inp
-// 	for i := 2; i <= 8; i++ {
-// 		// must save current value of loop variable i for correct behavior.
-// 		// compute function has to use digitToAdd not i.
-// 		digitToAdd := i
-// 		c = r.CreateCompute1(c, func(v int) int { return v*10 + digitToAdd })
-// 	}
-// 	assertCellValue(t, c, 12345678, "c.Value() isn't properly computed based on initial input cell value")
-// 	inp.SetValue(9)
-// 	assertCellValue(t, c, 92345678, "c.Value() isn't properly computed based on changed input cell value")
-// }
-//
+// Compute 1 cells can depend on other compute 1 cells.
+func TestCompute1Chain(t *testing.T) {
+	r := New()
+	inp := r.CreateInput(1)
+	var c Cell = inp
+	for i := 2; i <= 8; i++ {
+		// must save current value of loop variable i for correct behavior.
+		// compute function has to use digitToAdd not i.
+		digitToAdd := i
+		c = r.CreateCompute1(c, func(v int) int { return v*10 + digitToAdd })
+	}
+	assertCellValue(t, c, 12345678, "c.Value() isn't properly computed based on initial input cell value")
+	inp.SetValue(9)
+	assertCellValue(t, c, 92345678, "c.Value() isn't properly computed based on changed input cell value")
+}
+
 // // Compute 2 cells can depend on other compute 2 cells.
 // func TestCompute2Tree(t *testing.T) {
 // 	r := New()
@@ -115,7 +115,8 @@ func TestBasicCompute1(t *testing.T) {
 // 	assertCellValue(t, output, 242, "output.Value() isn't properly computed based on changed input cell values")
 // }
 //
-// // Compute cells can have callbacks.
+//
+// Compute cells can have callbacks.
 // func TestBasicCallback(t *testing.T) {
 // 	r := New()
 // 	i := r.CreateInput(1)
@@ -135,61 +136,61 @@ func TestBasicCompute1(t *testing.T) {
 // 		t.Fatalf("callback not called with proper value")
 // 	}
 // }
-//
-// // Callbacks and only trigger on change.
-// func TestOnlyCallOnChanges(t *testing.T) {
-// 	r := New()
-// 	i := r.CreateInput(1)
-// 	c := r.CreateCompute1(i, func(v int) int {
-// 		if v > 3 {
-// 			return v + 1
-// 		}
-// 		return 2
-// 	})
-// 	var observedCalled int
-// 	c.AddCallback(func(int) {
-// 		observedCalled++
-// 	})
-// 	i.SetValue(1)
-// 	if observedCalled != 0 {
-// 		t.Fatalf("observe function called even though input didn't change")
-// 	}
-// 	i.SetValue(2)
-// 	if observedCalled != 0 {
-// 		t.Fatalf("observe function called even though computed value didn't change")
-// 	}
-// }
-//
-// // Callbacks can be added and removed.
-// func TestCallbackAddRemove(t *testing.T) {
-// 	r := New()
-// 	i := r.CreateInput(1)
-// 	c := r.CreateCompute1(i, func(v int) int { return v + 1 })
-// 	var observed1 []int
-// 	cb1 := c.AddCallback(func(v int) {
-// 		observed1 = append(observed1, v)
-// 	})
-// 	var observed2 []int
-// 	c.AddCallback(func(v int) {
-// 		observed2 = append(observed2, v)
-// 	})
-// 	i.SetValue(2)
-// 	if len(observed1) != 1 || observed1[0] != 3 {
-// 		t.Fatalf("observed1 not properly called")
-// 	}
-// 	if len(observed2) != 1 || observed2[0] != 3 {
-// 		t.Fatalf("observed2 not properly called")
-// 	}
-// 	cb1.Cancel()
-// 	i.SetValue(3)
-// 	if len(observed1) != 1 {
-// 		t.Fatalf("observed1 called after removal")
-// 	}
-// 	if len(observed2) != 2 || observed2[1] != 4 {
-// 		t.Fatalf("observed2 not properly called after first callback removal")
-// 	}
-// }
-//
+
+// Callbacks and only trigger on change.
+func TestOnlyCallOnChanges(t *testing.T) {
+	r := New()
+	i := r.CreateInput(1)
+	c := r.CreateCompute1(i, func(v int) int {
+		if v > 3 {
+			return v + 1
+		}
+		return 2
+	})
+	var observedCalled int
+	c.AddCallback(func(int) {
+		observedCalled++
+	})
+	i.SetValue(1)
+	if observedCalled != 0 {
+		t.Fatalf("observe function called even though input didn't change")
+	}
+	i.SetValue(2)
+	if observedCalled != 0 {
+		t.Fatalf("observe function called even though computed value didn't change")
+	}
+}
+
+// Callbacks can be added and removed.
+func TestCallbackAddRemove(t *testing.T) {
+	r := New()
+	i := r.CreateInput(1)
+	c := r.CreateCompute1(i, func(v int) int { return v + 1 })
+	var observed1 []int
+	cb1 := c.AddCallback(func(v int) {
+		observed1 = append(observed1, v)
+	})
+	var observed2 []int
+	c.AddCallback(func(v int) {
+		observed2 = append(observed2, v)
+	})
+	i.SetValue(2)
+	if len(observed1) != 1 || observed1[0] != 3 {
+		t.Fatalf("observed1 not properly called")
+	}
+	if len(observed2) != 1 || observed2[0] != 3 {
+		t.Fatalf("observed2 not properly called")
+	}
+	cb1.Cancel()
+	i.SetValue(3)
+	if len(observed1) != 1 {
+		t.Fatalf("observed1 called after removal")
+	}
+	if len(observed2) != 2 || observed2[1] != 4 {
+		t.Fatalf("observed2 not properly called after first callback removal")
+	}
+}
+
 // func TestMultipleCallbackRemoval(t *testing.T) {
 // 	r := New()
 // 	inp := r.CreateInput(1)
