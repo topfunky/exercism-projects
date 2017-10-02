@@ -114,28 +114,27 @@ func TestCompute1Chain(t *testing.T) {
 //
 // 	assertCellValue(t, output, 242, "output.Value() isn't properly computed based on changed input cell values")
 // }
-//
-//
+
 // Compute cells can have callbacks.
-// func TestBasicCallback(t *testing.T) {
-// 	r := New()
-// 	i := r.CreateInput(1)
-// 	c := r.CreateCompute1(i, func(v int) int { return v + 1 })
-// 	var observed []int
-// 	c.AddCallback(func(v int) {
-// 		observed = append(observed, v)
-// 	})
-// 	if len(observed) != 0 {
-// 		t.Fatalf("callback called before changes were made")
-// 	}
-// 	i.SetValue(2)
-// 	if len(observed) != 1 {
-// 		t.Fatalf("callback not called when changes were made")
-// 	}
-// 	if observed[0] != 3 {
-// 		t.Fatalf("callback not called with proper value")
-// 	}
-// }
+func TestBasicCallback(t *testing.T) {
+	r := New()
+	i := r.CreateInput(1)
+	c := r.CreateCompute1(i, func(v int) int { return v + 1 })
+	var observed []int
+	c.AddCallback(func(v int) {
+		observed = append(observed, v)
+	})
+	if len(observed) != 0 {
+		t.Fatalf("callback called before changes were made")
+	}
+	i.SetValue(2)
+	if len(observed) != 1 {
+		t.Fatalf("callback not called when changes were made")
+	}
+	if observed[0] != 3 {
+		t.Fatalf("callback not called with proper value")
+	}
+}
 
 // Callbacks and only trigger on change.
 func TestOnlyCallOnChanges(t *testing.T) {
@@ -191,72 +190,72 @@ func TestCallbackAddRemove(t *testing.T) {
 	}
 }
 
-// func TestMultipleCallbackRemoval(t *testing.T) {
-// 	r := New()
-// 	inp := r.CreateInput(1)
-// 	c := r.CreateCompute1(inp, func(v int) int { return v + 1 })
-//
-// 	numCallbacks := 5
-//
-// 	calls := make([]int, numCallbacks)
-// 	cancelers := make([]Canceler, numCallbacks)
-// 	for i := 0; i < numCallbacks; i++ {
-// 		// Rebind i, otherwise all callbacks will use i = numCallbacks
-// 		i := i
-// 		cancelers[i] = c.AddCallback(func(v int) { calls[i]++ })
-// 	}
-//
-// 	inp.SetValue(2)
-// 	for i := 0; i < numCallbacks; i++ {
-// 		if calls[i] != 1 {
-// 			t.Fatalf("callback %d/%d should be called 1 time, was called %d times", i+1, numCallbacks, calls[i])
-// 		}
-// 		cancelers[i].Cancel()
-// 	}
-//
-// 	inp.SetValue(3)
-// 	for i := 0; i < numCallbacks; i++ {
-// 		if calls[i] != 1 {
-// 			t.Fatalf("callback %d/%d was called after it was removed", i+1, numCallbacks)
-// 		}
-// 	}
-// }
-//
-// func TestRemoveIdempotence(t *testing.T) {
-// 	r := New()
-// 	inp := r.CreateInput(1)
-// 	output := r.CreateCompute1(inp, func(v int) int { return v + 1 })
-// 	timesCalled := 0
-// 	cb1 := output.AddCallback(func(int) {})
-// 	output.AddCallback(func(int) { timesCalled++ })
-// 	for i := 0; i < 10; i++ {
-// 		cb1.Cancel()
-// 	}
-// 	inp.SetValue(2)
-// 	if timesCalled != 1 {
-// 		t.Fatalf("remaining callback function was not called")
-// 	}
-// }
-//
-// // Callbacks should only be called once even though
-// // multiple dependencies have changed.
-// func TestOnlyCallOnceOnMultipleDepChanges(t *testing.T) {
-// 	r := New()
-// 	i := r.CreateInput(1)
-// 	c1 := r.CreateCompute1(i, func(v int) int { return v + 1 })
-// 	c2 := r.CreateCompute1(i, func(v int) int { return v - 1 })
-// 	c3 := r.CreateCompute1(c2, func(v int) int { return v - 1 })
-// 	c4 := r.CreateCompute2(c1, c3, func(v1, v3 int) int { return v1 * v3 })
-// 	changed4 := 0
-// 	c4.AddCallback(func(int) { changed4++ })
-// 	i.SetValue(3)
-// 	if changed4 < 1 {
-// 		t.Fatalf("callback function was not called")
-// 	} else if changed4 > 1 {
-// 		t.Fatalf("callback function was called too often")
-// 	}
-// }
-//
+func TestMultipleCallbackRemoval(t *testing.T) {
+	r := New()
+	inp := r.CreateInput(1)
+	c := r.CreateCompute1(inp, func(v int) int { return v + 1 })
+
+	numCallbacks := 5
+
+	calls := make([]int, numCallbacks)
+	cancelers := make([]Canceler, numCallbacks)
+	for i := 0; i < numCallbacks; i++ {
+		// Rebind i, otherwise all callbacks will use i = numCallbacks
+		i := i
+		cancelers[i] = c.AddCallback(func(v int) { calls[i]++ })
+	}
+
+	inp.SetValue(2)
+	for i := 0; i < numCallbacks; i++ {
+		if calls[i] != 1 {
+			t.Fatalf("callback %d/%d should be called 1 time, was called %d times", i+1, numCallbacks, calls[i])
+		}
+		cancelers[i].Cancel()
+	}
+
+	inp.SetValue(3)
+	for i := 0; i < numCallbacks; i++ {
+		if calls[i] != 1 {
+			t.Fatalf("callback %d/%d was called after it was removed", i+1, numCallbacks)
+		}
+	}
+}
+
+func TestRemoveIdempotence(t *testing.T) {
+	r := New()
+	inp := r.CreateInput(1)
+	output := r.CreateCompute1(inp, func(v int) int { return v + 1 })
+	timesCalled := 0
+	cb1 := output.AddCallback(func(int) {})
+	output.AddCallback(func(int) { timesCalled++ })
+	for i := 0; i < 10; i++ {
+		cb1.Cancel()
+	}
+	inp.SetValue(2)
+	if timesCalled != 1 {
+		t.Fatalf("remaining callback function was not called")
+	}
+}
+
+// Callbacks should only be called once even though
+// multiple dependencies have changed.
+func TestOnlyCallOnceOnMultipleDepChanges(t *testing.T) {
+	r := New()
+	i := r.CreateInput(1)
+	c1 := r.CreateCompute1(i, func(v int) int { return v + 1 })
+	c2 := r.CreateCompute1(i, func(v int) int { return v - 1 })
+	c3 := r.CreateCompute1(c2, func(v int) int { return v - 1 })
+	c4 := r.CreateCompute2(c1, c3, func(v1, v3 int) int { return v1 * v3 })
+	changed4 := 0
+	c4.AddCallback(func(int) { changed4++ })
+	i.SetValue(3)
+	if changed4 < 1 {
+		t.Fatalf("callback function was not called")
+	} else if changed4 > 1 {
+		t.Fatalf("callback function was called too often")
+	}
+}
+
 // // Callbacks should not be called if dependencies change in such a way
 // // that the final value of the compute cell does not change.
 // func TestNoCallOnDepChangesResultingInNoChange(t *testing.T) {
