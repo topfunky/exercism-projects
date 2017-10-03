@@ -8,8 +8,7 @@ type Spreadsheet struct {
 
 // New creates a Spreadsheet.
 func New() *Spreadsheet {
-	s := new(Spreadsheet)
-	return s
+	return new(Spreadsheet)
 }
 
 // CreateInput creates an input cell linked into the reactor
@@ -22,10 +21,8 @@ func (s *Spreadsheet) CreateInput(value int) InputCell {
 // based on one other cell. The compute function will only be called
 // if the value of the passed cell changes.
 func (s *Spreadsheet) CreateCompute1(c Cell, callback func(int) int) ComputeCell {
-	input := c.(*SpreadsheetCell)
-	compute := SpreadsheetCell{}
-	compute.AddComputeFunc1(callback)
-	compute.ObserveCell(input)
+	compute := SpreadsheetCell{computeFunc1: callback}
+	compute.ObserveCells(c)
 	return &compute
 }
 
@@ -33,10 +30,8 @@ func (s *Spreadsheet) CreateCompute1(c Cell, callback func(int) int) ComputeCell
 // The compute function will only be called if the value of any of the
 // passed cells changes.
 func (s *Spreadsheet) CreateCompute2(c1 Cell, c2 Cell, callback func(int, int) int) ComputeCell {
-	compute := SpreadsheetCell{}
-	compute.AddComputeFunc2(callback)
-	compute.ObserveCell(c1)
-	compute.ObserveCell(c2)
+	compute := SpreadsheetCell{computeFunc2: callback}
+	compute.ObserveCells(c1, c2)
 	return &compute
 }
 
@@ -56,11 +51,11 @@ func (sc SpreadsheetCanceler) Cancel() {
 type SpreadsheetCell struct {
 	value      int
 	observedBy []*SpreadsheetCell
+	observing  []Cell
 
 	computeFunc1 func(int) int
 	computeFunc2 func(int, int) int
 	callbacks    []func(int)
-	observing    []Cell
 }
 
 // RegisterComputeCell adds references to a compute cell to the parent cell.
@@ -80,10 +75,12 @@ func (sc *SpreadsheetCell) Value() int {
 	return sc.value
 }
 
-// ObserveCell registers a cell for notification upon change.
-func (sc *SpreadsheetCell) ObserveCell(cell Cell) {
-	sc.observing = append(sc.observing, cell)
-	cell.(*SpreadsheetCell).RegisterComputeCell(sc)
+// ObserveCells registers one or more cell for notification upon change.
+func (sc *SpreadsheetCell) ObserveCells(cells ...Cell) {
+	for _, cell := range cells {
+		sc.observing = append(sc.observing, cell)
+		cell.(*SpreadsheetCell).RegisterComputeCell(sc)
+	}
 }
 
 func (sc *SpreadsheetCell) recalculateAll() {
@@ -95,10 +92,10 @@ func (sc *SpreadsheetCell) recalculateAll() {
 func (sc *SpreadsheetCell) recalculate(caller *SpreadsheetCell) {
 	original := sc.Value()
 	switch {
-	case sc.computeFunc2 != nil && len(sc.observing) > 1 && sc.observing[1] != nil:
+	case sc.computeFunc2 != nil && len(sc.observing) > 1:
 		value := sc.computeFunc2(sc.observing[0].Value(), sc.observing[1].Value())
 		sc.SetValue(value)
-	case sc.computeFunc1 != nil && len(sc.observing) > 0 && sc.observing[0] != nil:
+	case sc.computeFunc1 != nil:
 		value := sc.computeFunc1(sc.observing[0].Value())
 		sc.SetValue(value)
 	}
@@ -110,16 +107,6 @@ func (sc *SpreadsheetCell) recalculate(caller *SpreadsheetCell) {
 			}
 		}
 	}
-}
-
-// AddComputeFunc1 adds a single argument callback which will be called when the value changes.
-func (sc *SpreadsheetCell) AddComputeFunc1(callback func(int) int) {
-	sc.computeFunc1 = callback
-}
-
-// AddComputeFunc2 adds a two argument callback which will be called when the value changes.
-func (sc *SpreadsheetCell) AddComputeFunc2(callback2 func(int, int) int) {
-	sc.computeFunc2 = callback2
 }
 
 // AddCallback registers and auxiliary callback which will be called with the
