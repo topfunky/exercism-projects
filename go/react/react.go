@@ -4,7 +4,6 @@ const testVersion = 5
 
 // Spreadsheet manages the creation of cells.
 type Spreadsheet struct {
-	// TODO: keep a slice of input and compute cells
 }
 
 // New creates a Spreadsheet.
@@ -15,8 +14,8 @@ func New() *Spreadsheet {
 
 // CreateInput creates an input cell linked into the reactor
 // with the given initial value.
-func (s *Spreadsheet) CreateInput(data int) InputCell {
-	return &SpreadsheetCell{data: data}
+func (s *Spreadsheet) CreateInput(value int) InputCell {
+	return &SpreadsheetCell{value: value}
 }
 
 // CreateCompute1 creates a compute cell which computes its value
@@ -55,59 +54,53 @@ func (sc SpreadsheetCanceler) Cancel() {
 // SpreadsheetCell has a changeable value, changing the value triggers updates to
 // other cells.
 type SpreadsheetCell struct {
-	data       int
-	observedBy *SpreadsheetCell
+	value      int
+	observedBy []*SpreadsheetCell
 
 	computeFunc1 func(int) int
 	computeFunc2 func(int, int) int
 	callbacks    []func(int)
-	observing    [2]Cell
+	observing    []Cell
 }
 
 // RegisterComputeCell adds references to a compute cell to the parent cell.
 func (sc *SpreadsheetCell) RegisterComputeCell(computeCell *SpreadsheetCell) {
-	sc.observedBy = computeCell
+	sc.observedBy = append(sc.observedBy, computeCell)
 	sc.recalculateAll()
 }
 
 // SetValue sets the value of the cell.
-func (sc *SpreadsheetCell) SetValue(data int) {
-	sc.data = data
+func (sc *SpreadsheetCell) SetValue(value int) {
+	sc.value = value
 	sc.recalculateAll()
 }
 
 // Value returns the cell's data (whether static or computed).
 func (sc *SpreadsheetCell) Value() int {
-	return sc.data
-}
-
-func (sc *SpreadsheetCell) recalculateAll() {
-	if sc.observedBy != nil {
-		sc.observedBy.recalculate()
-	}
+	return sc.value
 }
 
 // ObserveCell registers a cell for notification upon change.
 func (sc *SpreadsheetCell) ObserveCell(cell Cell) {
-	if sc.observing[0] == nil {
-		sc.observing[0] = cell
-	} else {
-		sc.observing[1] = cell
-	}
+	sc.observing = append(sc.observing, cell)
 	cell.(*SpreadsheetCell).RegisterComputeCell(sc)
 }
 
-func (sc *SpreadsheetCell) recalculate() {
+func (sc *SpreadsheetCell) recalculateAll() {
+	for _, observer := range sc.observedBy {
+		observer.recalculate(sc)
+	}
+}
+
+func (sc *SpreadsheetCell) recalculate(caller *SpreadsheetCell) {
 	original := sc.Value()
 	switch {
-	case sc.computeFunc2 != nil && sc.observing[1] != nil:
+	case sc.computeFunc2 != nil && len(sc.observing) > 1 && sc.observing[1] != nil:
 		value := sc.computeFunc2(sc.observing[0].Value(), sc.observing[1].Value())
 		sc.SetValue(value)
-	case sc.computeFunc1 != nil && sc.observing[0] != nil:
+	case sc.computeFunc1 != nil && len(sc.observing) > 0 && sc.observing[0] != nil:
 		value := sc.computeFunc1(sc.observing[0].Value())
 		sc.SetValue(value)
-	default:
-		// sc.observing is nil
 	}
 	// Run auxiliary callbacks if computed value changed
 	if sc.Value() != original {
