@@ -30,14 +30,17 @@ import (
 
 const testVersion = 4
 
+// Set is a custom list of strings.
 type Set struct {
 	elements []string
 }
 
+// New creates a blank Set.
 func New() Set {
 	return Set{}
 }
 
+// NewFromSlice creates a Set from a slice of strings.
 func NewFromSlice(elements []string) Set {
 	s := Set{}
 	for _, e := range elements {
@@ -50,31 +53,53 @@ func NewFromSlice(elements []string) Set {
 }
 
 func (s Set) String() string {
-	quotedElements := Map(s.elements, func(e string) string {
-		return fmt.Sprintf("\"%s\"", e)
-	})
 	if len(s.elements) == 0 {
 		return "{}"
 	}
-	return fmt.Sprintf("{%s}", strings.Join(quotedElements, ", "))
+	return fmt.Sprintf("{\"%s\"}", strings.Join(s.elements, "\", \""))
 }
 
+// IsEmpty returns true if the Set has nothing in it.
 func (s Set) IsEmpty() bool {
 	return len(s.elements) == 0
 }
 
-func (s Set) Has(st string) bool {
-	return Include(s.elements, st)
+// Has returns true if the set contains string `t` as an element.
+func (s Set) Has(t string) bool {
+	return Include(s, t)
 }
 
+// Subset returns true if all the elements in `s1` are also in `s2`.
 func Subset(s1, s2 Set) bool {
-	return true
+	matches := Filter(s1, func(t string) bool {
+		return Include(s2, t)
+	})
+	return len(matches.elements) == len(s1.elements)
 }
 
+// Disjoint returns true if the two sets have nothing in common.
 func Disjoint(s1, s2 Set) bool {
-	return true
+	shorterSet, longerSet := sortSetsByLen(s1, s2)
+	hasNothingInCommon := true
+	for _, e := range longerSet.elements {
+		if Include(shorterSet, e) {
+			hasNothingInCommon = false
+		}
+	}
+	return hasNothingInCommon
 }
 
+// sortSetsByLen returns two structs: the shorter set by length, and then the
+// longer set by length.
+func sortSetsByLen(s1, s2 Set) (Set, Set) {
+	longerSet, shorterSet := s1, s2
+	if len(s1.elements) < len(s2.elements) {
+		shorterSet, longerSet = s1, s2
+	}
+	return shorterSet, longerSet
+}
+
+// Equal returns true if all elements in each set are the same.
 func Equal(s1, s2 Set) bool {
 	if len(s1.elements) != len(s2.elements) {
 		return false
@@ -87,21 +112,39 @@ func Equal(s1, s2 Set) bool {
 	return true
 }
 
-func (s *Set) Add(st string) {
-	if !s.Has(st) {
-		s.elements = append(s.elements, st)
+// Add appends string `t` to the set if it is not already there.
+func (s *Set) Add(t string) {
+	if !s.Has(t) {
+		s.elements = append(s.elements, t)
 		sort.Strings(s.elements)
 	}
 }
 
+// Intersection returns a set of the elements that are in common between the
+// two sets.
 func Intersection(s1, s2 Set) Set {
-	return Set{}
+	shorterSet, longerSet := sortSetsByLen(s1, s2)
+	commonElements := []string{}
+	for _, e := range longerSet.elements {
+		if Include(shorterSet, e) {
+			commonElements = append(commonElements, e)
+		}
+	}
+	return NewFromSlice(commonElements)
 }
 
+// Difference returns a set of the items that are in s1 but not in s2.
 func Difference(s1, s2 Set) Set {
-	return Set{}
+	uncommonElements := []string{}
+	for _, e := range s1.elements {
+		if !Include(s2, e) {
+			uncommonElements = append(uncommonElements, e)
+		}
+	}
+	return NewFromSlice(uncommonElements)
 }
 
+// Union returns a unique set of all the items that are in both sets.
 func Union(s1, s2 Set) Set {
 	s3 := NewFromSlice(s1.elements)
 	for _, e := range s2.elements {
@@ -110,16 +153,9 @@ func Union(s1, s2 Set) Set {
 	return s3
 }
 
-func Map(vs []string, f func(string) string) []string {
-	vsm := make([]string, len(vs))
-	for i, v := range vs {
-		vsm[i] = f(v)
-	}
-	return vsm
-}
-
-func Index(vs []string, t string) int {
-	for i, v := range vs {
+// Index returns an int if Set `s` contains string `t`.
+func Index(s Set, t string) int {
+	for i, v := range s.elements {
 		if v == t {
 			return i
 		}
@@ -127,6 +163,18 @@ func Index(vs []string, t string) int {
 	return -1
 }
 
-func Include(vs []string, t string) bool {
-	return Index(vs, t) >= 0
+// Include returns true if Set `s` contains string `t`.
+func Include(s Set, t string) bool {
+	return Index(s, t) >= 0
+}
+
+// Filter iterates over Set `s` and returns the items for which `f` is true.
+func Filter(s Set, f func(string) bool) Set {
+	vsf := make([]string, 0)
+	for _, v := range s.elements {
+		if f(v) {
+			vsf = append(vsf, v)
+		}
+	}
+	return NewFromSlice(vsf)
 }
