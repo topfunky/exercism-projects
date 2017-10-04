@@ -19,11 +19,7 @@ func New() Set {
 // NewFromSlice creates a Set from a slice of strings.
 func NewFromSlice(elements []string) Set {
 	s := Set{}
-	for _, e := range elements {
-		if !s.Has(e) {
-			s = append(s, e)
-		}
-	}
+	s.Add(elements...)
 	sort.Strings(s)
 	return s
 }
@@ -88,11 +84,13 @@ func Equal(s1, s2 Set) bool {
 	return true
 }
 
-// Add appends string `t` to the set if it is not already there.
-func (s *Set) Add(t string) {
-	if !s.Has(t) {
-		*s = append(*s, t)
-		sort.Strings(*s)
+// Add appends one or more `elements` to the set if they are not already there.
+func (s *Set) Add(elements ...string) {
+	for _, e := range elements {
+		if !s.Has(e) {
+			*s = append(*s, e)
+			sort.Strings(*s)
+		}
 	}
 }
 
