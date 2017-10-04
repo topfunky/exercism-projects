@@ -98,24 +98,24 @@ func (s *Set) Add(elements ...string) {
 // two sets.
 func Intersection(s1, s2 Set) Set {
 	shorterSet, longerSet := sortSetsByLen(s1, s2)
-	commonElements := []string{}
+	common := Set{}
 	for _, e := range longerSet {
 		if Include(shorterSet, e) {
-			commonElements = append(commonElements, e)
+			common.Add(e)
 		}
 	}
-	return NewFromSlice(commonElements)
+	return common
 }
 
 // Difference returns a set of the items that are in s1 but not in s2.
 func Difference(s1, s2 Set) Set {
-	uncommonElements := []string{}
+	uncommon := Set{}
 	for _, e := range s1 {
 		if !Include(s2, e) {
-			uncommonElements = append(uncommonElements, e)
+			uncommon.Add(e)
 		}
 	}
-	return NewFromSlice(uncommonElements)
+	return uncommon
 }
 
 // Union returns a unique set of all the items that are in both sets.
