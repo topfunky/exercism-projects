@@ -25,10 +25,11 @@ func NewFromSlice(elements []string) Set {
 }
 
 func (s Set) String() string {
-	if len(s) == 0 {
-		return "{}"
+	quoted := []string{}
+	for _, e := range s {
+		quoted = append(quoted, fmt.Sprintf("%q", e))
 	}
-	return fmt.Sprintf("{\"%s\"}", strings.Join(s, "\", \""))
+	return fmt.Sprintf("{%s}", strings.Join(quoted, ", "))
 }
 
 // IsEmpty returns true if the Set has nothing in it.
@@ -51,37 +52,17 @@ func Subset(s1, s2 Set) bool {
 
 // Disjoint returns true if the two sets have nothing in common.
 func Disjoint(s1, s2 Set) bool {
-	shorterSet, longerSet := sortSetsByLen(s1, s2)
-	hasNothingInCommon := true
-	for _, e := range longerSet {
-		if Include(shorterSet, e) {
-			hasNothingInCommon = false
-		}
-	}
-	return hasNothingInCommon
-}
-
-// sortSetsByLen returns two structs: the shorter set by length, and then the
-// longer set by length.
-func sortSetsByLen(s1, s2 Set) (Set, Set) {
-	longerSet, shorterSet := s1, s2
-	if len(s1) < len(s2) {
-		shorterSet, longerSet = s1, s2
-	}
-	return shorterSet, longerSet
-}
-
-// Equal returns true if all elements in each set are the same.
-func Equal(s1, s2 Set) bool {
-	if len(s1) != len(s2) {
-		return false
-	}
-	for index, e := range s1 {
-		if s2[index] != e {
+	for _, e := range s1 {
+		if Include(s2, e) {
 			return false
 		}
 	}
 	return true
+}
+
+// Equal returns true if all elements in each set are the same.
+func Equal(s1, s2 Set) bool {
+	return len(s1) == len(s2) && Subset(s1, s2)
 }
 
 // Add appends one or more `elements` to the set if they are not already there.
@@ -97,10 +78,9 @@ func (s *Set) Add(elements ...string) {
 // Intersection returns a set of the elements that are in common between the
 // two sets.
 func Intersection(s1, s2 Set) Set {
-	shorterSet, longerSet := sortSetsByLen(s1, s2)
 	common := Set{}
-	for _, e := range longerSet {
-		if Include(shorterSet, e) {
+	for _, e := range s1 {
+		if Include(s2, e) {
 			common.Add(e)
 		}
 	}
@@ -120,11 +100,10 @@ func Difference(s1, s2 Set) Set {
 
 // Union returns a unique set of all the items that are in both sets.
 func Union(s1, s2 Set) Set {
-	s3 := NewFromSlice(s1)
 	for _, e := range s2 {
-		s3.Add(e)
+		s1.Add(e)
 	}
-	return s3
+	return s1
 }
 
 // Index returns an int if Set `s` contains string `t`.
