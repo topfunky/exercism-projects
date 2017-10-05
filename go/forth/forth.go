@@ -84,7 +84,38 @@ func interpretLines(lines []string) (*stack.Stack, error) {
 					return stk, errors.New("found a single '/', did you mean to prepend some numbers?")
 				}
 			case "dup":
-				stk.Push(stk.Peek())
+				if topValue := stk.Peek(); topValue != nil {
+					stk.Push(topValue)
+				} else {
+					return stk, errors.New("can't dup without an argument")
+				}
+			case "drop":
+				if stk.Len() > 0 {
+					stk.Pop()
+				} else {
+					return stk, errors.New("can't drop if there is no argument")
+				}
+			case "swap":
+				if stk.Len() >= 2 {
+					top := stk.Pop()
+					next := stk.Pop()
+					stk.Push(top)
+					stk.Push(next)
+				} else if stk.Len() < 2 {
+					return stk, errors.New("can't swap unless there are at least two values")
+				}
+			case "over":
+				if stk.Len() >= 2 {
+					top := stk.Pop()
+					next := stk.Pop()
+					stk.Push(next)
+					stk.Push(top)
+					stk.Push(next)
+				} else {
+					return stk, errors.New("can't copy with over if there are no arguments")
+				}
+			default:
+				println("Got " + s)
 			}
 		}
 	}
