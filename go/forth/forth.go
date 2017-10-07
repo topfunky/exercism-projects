@@ -40,13 +40,15 @@ func lex(s []string) (lines []string) {
 // (addition of numbers, assignment of variables, etc.).
 func interpretLines(lines []string) (*stack.Stack, error) {
 	stk := stack.New()
+	userDefinedVars := make(map[string][]string)
 
-	for _, s := range lines {
-		if i, err := strconv.Atoi(s); err == nil {
+	for i := 0; i < len(lines); i++ {
+		word := lines[i]
+		if num, err := strconv.Atoi(word); err == nil {
 			// It's an int
-			stk.Push(i)
+			stk.Push(num)
 		} else {
-			switch strings.ToLower(s) {
+			switch strings.ToLower(word) {
 			case "+":
 				if stk.Len() == 2 {
 					i2 := stk.Pop().(int)
@@ -114,10 +116,28 @@ func interpretLines(lines []string) (*stack.Stack, error) {
 				} else {
 					return stk, errors.New("can't copy with over if there are no arguments")
 				}
+			case ":":
+				i, err = assignStmt(userDefinedVars, i, lines)
 			default:
-				println("Got " + s)
+				// TODO Look for user-defined variables
+				println("Got: " + word)
 			}
 		}
 	}
 	return stk, nil
+}
+
+// Parse `: var-name value ;`
+func assignStmt(userDefinedVars map[string][]string, index int, lines []string) (int, error) {
+	stmtEndIndex := 0
+	for i := index; i < len(lines); i++ {
+		if lines[i] == ";" {
+			stmtEndIndex = i
+			break
+		}
+	}
+	wordName := lines[index+1]
+	wordValues := lines[index+2 : stmtEndIndex]
+	userDefinedVars[wordName] = wordValues
+	return index + stmtEndIndex, nil
 }
