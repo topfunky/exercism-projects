@@ -44,100 +44,110 @@ func interpretLines(lines []string) (*stack.Stack, error) {
 
 	for i := 0; i < len(lines); i++ {
 		word := lines[i]
-		if num, err := strconv.Atoi(word); err == nil {
-			// It's an int
-			stk.Push(num)
-		} else {
-			switch strings.ToLower(word) {
-			case "+":
-				if stk.Len() == 2 {
-					i2 := stk.Pop().(int)
-					i1 := stk.Pop().(int)
-					stk.Push(i1 + i2)
-				} else {
-					return stk, errors.New("found a single '+', did you mean to prepend some numbers?")
-				}
-			case "-":
-				if stk.Len() == 2 {
-					i2 := stk.Pop().(int)
-					i1 := stk.Pop().(int)
-					stk.Push(i1 - i2)
-				} else {
-					return stk, errors.New("found a single '-', did you mean to prepend some numbers?")
-				}
-			case "*":
-				if stk.Len() == 2 {
-					i2 := stk.Pop().(int)
-					i1 := stk.Pop().(int)
-					stk.Push(i1 * i2)
-				} else {
-					return stk, errors.New("found a single '*', did you mean to prepend some numbers?")
-				}
-			case "/":
-				if stk.Len() == 2 {
-					i2 := stk.Pop().(int)
-					i1 := stk.Pop().(int)
-					if i2 != 0 {
-						stk.Push(i1 / i2)
-					} else {
-						return stk, errors.New("can't divide by zero!")
-					}
-				} else {
-					return stk, errors.New("found a single '/', did you mean to prepend some numbers?")
-				}
-			case "dup":
-				if topValue := stk.Peek(); topValue != nil {
-					stk.Push(topValue)
-				} else {
-					return stk, errors.New("can't dup without an argument")
-				}
-			case "drop":
-				if stk.Len() > 0 {
-					stk.Pop()
-				} else {
-					return stk, errors.New("can't drop if there is no argument")
-				}
-			case "swap":
-				if stk.Len() >= 2 {
-					top := stk.Pop()
-					next := stk.Pop()
-					stk.Push(top)
-					stk.Push(next)
-				} else if stk.Len() < 2 {
-					return stk, errors.New("can't swap unless there are at least two values")
-				}
-			case "over":
-				if stk.Len() >= 2 {
-					top := stk.Pop()
-					next := stk.Pop()
-					stk.Push(next)
-					stk.Push(top)
-					stk.Push(next)
-				} else {
-					return stk, errors.New("can't copy with over if there are no arguments")
-				}
-			case ":":
-				i, err = assignStmt(userDefinedVars, i, lines)
-			default:
-				// TODO Look for user-defined variables
-				println("Got: " + word)
-			}
+		var err error
+		err = interpretWord(word, &i, lines, stk, userDefinedVars)
+		if err != nil {
+			return stk, err
 		}
 	}
 	return stk, nil
 }
 
+func interpretWord(word string, i *int, lines []string, stk *stack.Stack, userDefinedVars map[string][]string) error {
+	if num, err := strconv.Atoi(word); err == nil {
+		// It's an int
+		stk.Push(num)
+	} else {
+		switch strings.ToLower(word) {
+		case "+":
+			if stk.Len() == 2 {
+				i2 := stk.Pop().(int)
+				i1 := stk.Pop().(int)
+				stk.Push(i1 + i2)
+			} else {
+				return errors.New("found a single '+', did you mean to prepend some numbers?")
+			}
+		case "-":
+			if stk.Len() == 2 {
+				i2 := stk.Pop().(int)
+				i1 := stk.Pop().(int)
+				stk.Push(i1 - i2)
+			} else {
+				return errors.New("found a single '-', did you mean to prepend some numbers?")
+			}
+		case "*":
+			if stk.Len() == 2 {
+				i2 := stk.Pop().(int)
+				i1 := stk.Pop().(int)
+				stk.Push(i1 * i2)
+			} else {
+				return errors.New("found a single '*', did you mean to prepend some numbers?")
+			}
+		case "/":
+			if stk.Len() == 2 {
+				i2 := stk.Pop().(int)
+				i1 := stk.Pop().(int)
+				if i2 != 0 {
+					stk.Push(i1 / i2)
+				} else {
+					return errors.New("can't divide by zero!")
+				}
+			} else {
+				return errors.New("found a single '/', did you mean to prepend some numbers?")
+			}
+		case "dup":
+			if topValue := stk.Peek(); topValue != nil {
+				stk.Push(topValue)
+			} else {
+				return errors.New("can't dup without an argument")
+			}
+		case "drop":
+			if stk.Len() > 0 {
+				stk.Pop()
+			} else {
+				return errors.New("can't drop if there is no argument")
+			}
+		case "swap":
+			if stk.Len() >= 2 {
+				top := stk.Pop()
+				next := stk.Pop()
+				stk.Push(top)
+				stk.Push(next)
+			} else if stk.Len() < 2 {
+				return errors.New("can't swap unless there are at least two values")
+			}
+		case "over":
+			if stk.Len() >= 2 {
+				top := stk.Pop()
+				next := stk.Pop()
+				stk.Push(next)
+				stk.Push(top)
+				stk.Push(next)
+			} else {
+				return errors.New("can't copy with over if there are no arguments")
+			}
+		case ":":
+			err = assignStmt(userDefinedVars, i, lines)
+		default:
+			// TODO Look for user-defined variables
+			println("Got: " + word)
+		}
+	}
+	return nil
+}
+
 // Parse `: var-name value ;`
-func assignStmt(userDefinedVars map[string][]string, index int, lines []string) (int, error) {
+func assignStmt(userDefinedVars map[string][]string, index *int, lines []string) error {
 	stmtEndIndex := 0
-	for i := index; i < len(lines); i++ {
+	for i := *index; i < len(lines); i++ {
 		if lines[i] == ";" {
 			stmtEndIndex = i
 			break
 		}
 	}
-	wordName := lines[index+1]
-	wordValues := lines[index+2 : stmtEndIndex]
+	wordName := lines[*index+1]
+	wordValues := lines[*index+2 : stmtEndIndex]
 	userDefinedVars[wordName] = wordValues
-	return index + stmtEndIndex, nil
+	*index += stmtEndIndex
+	return nil
 }
