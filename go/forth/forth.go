@@ -54,11 +54,18 @@ func interpretLines(lines []string) (*stack.Stack, error) {
 }
 
 func interpretWord(word string, i *int, lines []string, stk *stack.Stack, userDefinedVars map[string][]string) error {
+	word = strings.ToLower(word)
 	if num, err := strconv.Atoi(word); err == nil {
-		// It's an int
+		// an int
 		stk.Push(num)
+	} else if statements, ok := userDefinedVars[word]; ok {
+		// user-defined words
+		for _, stmt := range statements {
+			interpretWord(stmt, i, lines, stk, userDefinedVars)
+		}
 	} else {
-		switch strings.ToLower(word) {
+		// built-in keywords and operators
+		switch word {
 		case "+":
 			if stk.Len() == 2 {
 				i2 := stk.Pop().(int)
@@ -90,7 +97,7 @@ func interpretWord(word string, i *int, lines []string, stk *stack.Stack, userDe
 				if i2 != 0 {
 					stk.Push(i1 / i2)
 				} else {
-					return errors.New("can't divide by zero!")
+					return errors.New("can't divide by zero")
 				}
 			} else {
 				return errors.New("found a single '/', did you mean to prepend some numbers?")
@@ -127,10 +134,11 @@ func interpretWord(word string, i *int, lines []string, stk *stack.Stack, userDe
 				return errors.New("can't copy with over if there are no arguments")
 			}
 		case ":":
-			err = assignStmt(userDefinedVars, i, lines)
+			if err = assignStmt(userDefinedVars, i, lines); err != nil {
+				return err
+			}
 		default:
-			// TODO Look for user-defined variables
-			println("Got: " + word)
+			return errors.New(word + " is not a built-in or recognized user-defined word")
 		}
 	}
 	return nil
@@ -147,7 +155,10 @@ func assignStmt(userDefinedVars map[string][]string, index *int, lines []string)
 	}
 	wordName := lines[*index+1]
 	wordValues := lines[*index+2 : stmtEndIndex]
+	if _, err := strconv.Atoi(wordName); err == nil {
+		return errors.New("numbers can't be redefined as user-defined words")
+	}
 	userDefinedVars[wordName] = wordValues
-	*index += stmtEndIndex
+	*index = stmtEndIndex
 	return nil
 }
