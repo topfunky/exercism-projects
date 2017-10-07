@@ -17,7 +17,7 @@ func Forth(codeText []string) ([]int, error) {
 	stk, err := interpretLines(lines)
 
 	results := make([]int, stk.Len())
-	// Unroll backwards
+	// pop all values off the stack and return as slice
 	for i := stk.Len() - 1; i >= 0; i-- {
 		results[i] = stk.Pop().(int)
 	}
@@ -40,12 +40,12 @@ func lex(s []string) (lines []string) {
 // (addition of numbers, assignment of variables, etc.).
 func interpretLines(lines []string) (*stack.Stack, error) {
 	stk := stack.New()
-	userDefinedVars := make(map[string][]string)
+	userDefinedWords := make(map[string][]string)
 
 	for i := 0; i < len(lines); i++ {
 		word := lines[i]
 		var err error
-		err = interpretWord(word, &i, lines, stk, userDefinedVars)
+		err = interpretWord(word, &i, lines, stk, userDefinedWords)
 		if err != nil {
 			return stk, err
 		}
@@ -53,88 +53,56 @@ func interpretLines(lines []string) (*stack.Stack, error) {
 	return stk, nil
 }
 
-func interpretWord(word string, i *int, lines []string, stk *stack.Stack, userDefinedVars map[string][]string) error {
+// interpretWord reads each token and executes it appropriately.
+func interpretWord(word string, i *int, lines []string, stk *stack.Stack, userDefinedWords map[string][]string) error {
+	var num int
+	var err error
 	word = strings.ToLower(word)
-	if num, err := strconv.Atoi(word); err == nil {
+	if num, err = strconv.Atoi(word); err == nil {
 		// an int
 		stk.Push(num)
-	} else if statements, ok := userDefinedVars[word]; ok {
+	} else if statements, ok := userDefinedWords[word]; ok {
 		// user-defined words
 		for _, stmt := range statements {
-			interpretWord(stmt, i, lines, stk, userDefinedVars)
+			interpretWord(stmt, i, lines, stk, userDefinedWords)
 		}
 	} else {
 		// built-in keywords and operators
 		switch word {
 		case "+":
-			if stk.Len() == 2 {
-				i2 := stk.Pop().(int)
-				i1 := stk.Pop().(int)
-				stk.Push(i1 + i2)
-			} else {
-				return errors.New("found a single '+', did you mean to prepend some numbers?")
+			if err = plusOp(stk); err != nil {
+				return err
 			}
 		case "-":
-			if stk.Len() == 2 {
-				i2 := stk.Pop().(int)
-				i1 := stk.Pop().(int)
-				stk.Push(i1 - i2)
-			} else {
-				return errors.New("found a single '-', did you mean to prepend some numbers?")
+			if err = minusOp(stk); err != nil {
+				return err
 			}
 		case "*":
-			if stk.Len() == 2 {
-				i2 := stk.Pop().(int)
-				i1 := stk.Pop().(int)
-				stk.Push(i1 * i2)
-			} else {
-				return errors.New("found a single '*', did you mean to prepend some numbers?")
+			if err = multiplyOp(stk); err != nil {
+				return err
 			}
 		case "/":
-			if stk.Len() == 2 {
-				i2 := stk.Pop().(int)
-				i1 := stk.Pop().(int)
-				if i2 != 0 {
-					stk.Push(i1 / i2)
-				} else {
-					return errors.New("can't divide by zero")
-				}
-			} else {
-				return errors.New("found a single '/', did you mean to prepend some numbers?")
+			if err = divideOp(stk); err != nil {
+				return err
 			}
 		case "dup":
-			if topValue := stk.Peek(); topValue != nil {
-				stk.Push(topValue)
-			} else {
-				return errors.New("can't dup without an argument")
+			if err = dupOp(stk); err != nil {
+				return err
 			}
 		case "drop":
-			if stk.Len() > 0 {
-				stk.Pop()
-			} else {
-				return errors.New("can't drop if there is no argument")
+			if err = dropOp(stk); err != nil {
+				return err
 			}
 		case "swap":
-			if stk.Len() >= 2 {
-				top := stk.Pop()
-				next := stk.Pop()
-				stk.Push(top)
-				stk.Push(next)
-			} else if stk.Len() < 2 {
-				return errors.New("can't swap unless there are at least two values")
+			if err = swapOp(stk); err != nil {
+				return err
 			}
 		case "over":
-			if stk.Len() >= 2 {
-				top := stk.Pop()
-				next := stk.Pop()
-				stk.Push(next)
-				stk.Push(top)
-				stk.Push(next)
-			} else {
-				return errors.New("can't copy with over if there are no arguments")
+			if err = overOp(stk); err != nil {
+				return err
 			}
 		case ":":
-			if err = assignStmt(userDefinedVars, i, lines); err != nil {
+			if err = assignStmt(userDefinedWords, i, lines); err != nil {
 				return err
 			}
 		default:
@@ -144,8 +112,8 @@ func interpretWord(word string, i *int, lines []string, stk *stack.Stack, userDe
 	return nil
 }
 
-// Parse `: var-name value ;`
-func assignStmt(userDefinedVars map[string][]string, index *int, lines []string) error {
+// assignStmt parses user-defined words in the format `: var-name value ;`
+func assignStmt(userDefinedWords map[string][]string, index *int, lines []string) error {
 	stmtEndIndex := 0
 	for i := *index; i < len(lines); i++ {
 		if lines[i] == ";" {
@@ -158,7 +126,98 @@ func assignStmt(userDefinedVars map[string][]string, index *int, lines []string)
 	if _, err := strconv.Atoi(wordName); err == nil {
 		return errors.New("numbers can't be redefined as user-defined words")
 	}
-	userDefinedVars[wordName] = wordValues
+	userDefinedWords[wordName] = wordValues
 	*index = stmtEndIndex
+	return nil
+}
+
+func plusOp(stk *stack.Stack) error {
+	if stk.Len() == 2 {
+		i2 := stk.Pop().(int)
+		i1 := stk.Pop().(int)
+		stk.Push(i1 + i2)
+	} else {
+		return errors.New("found a single '+', did you mean to prepend some numbers?")
+	}
+	return nil
+}
+
+func minusOp(stk *stack.Stack) error {
+	if stk.Len() == 2 {
+		i2 := stk.Pop().(int)
+		i1 := stk.Pop().(int)
+		stk.Push(i1 - i2)
+	} else {
+		return errors.New("found a single '-', did you mean to prepend some numbers?")
+	}
+	return nil
+}
+
+func multiplyOp(stk *stack.Stack) error {
+	if stk.Len() == 2 {
+		i2 := stk.Pop().(int)
+		i1 := stk.Pop().(int)
+		stk.Push(i1 * i2)
+	} else {
+		return errors.New("found a single '*', did you mean to prepend some numbers?")
+	}
+	return nil
+}
+
+func divideOp(stk *stack.Stack) error {
+	if stk.Len() == 2 {
+		i2 := stk.Pop().(int)
+		i1 := stk.Pop().(int)
+		if i2 != 0 {
+			stk.Push(i1 / i2)
+		} else {
+			return errors.New("can't divide by zero")
+		}
+	} else {
+		return errors.New("found a single '/', did you mean to prepend some numbers?")
+	}
+	return nil
+}
+
+func dupOp(stk *stack.Stack) error {
+	if topValue := stk.Peek(); topValue != nil {
+		stk.Push(topValue)
+	} else {
+		return errors.New("can't dup without an argument")
+	}
+	return nil
+}
+
+func dropOp(stk *stack.Stack) error {
+	if stk.Len() > 0 {
+		stk.Pop()
+	} else {
+		return errors.New("can't drop if there is no argument")
+	}
+	return nil
+}
+
+func swapOp(stk *stack.Stack) error {
+	if stk.Len() >= 2 {
+		top := stk.Pop()
+		next := stk.Pop()
+		stk.Push(top)
+		stk.Push(next)
+	} else if stk.Len() < 2 {
+		return errors.New("can't swap unless there are at least two values")
+	}
+	return nil
+}
+
+func overOp(stk *stack.Stack) error {
+	if stk.Len() >= 2 {
+		top := stk.Pop()
+		next := stk.Pop()
+		stk.Push(next)
+		stk.Push(top)
+		stk.Push(next)
+	} else {
+		return errors.New("can't copy with over if there are no arguments")
+	}
 	return nil
 }
