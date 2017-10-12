@@ -37,3 +37,9 @@ func TestPigLatin(t *testing.T) {
 		})
 	}
 }
+
+func BenchmarkPigLatin(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		PigLatin("school xray things all finger alligator bubble gum")
+	}
+}
