@@ -10,9 +10,10 @@ const testVersion = 1
 // PigLatin translates a phrase from English to a funny language ending in 'ay'.
 // It returns the translated string.
 func PigLatin(phrase string) (pl string) {
-	translations := []string{}
-	for _, word := range strings.Split(phrase, " ") {
-		translations = append(translations, translate(word))
+	words := strings.Split(phrase, " ")
+	translations := make([]string, len(words))
+	for index, word := range words {
+		translations[index] = translate(word)
 	}
 	return strings.Join(translations, " ")
 }
